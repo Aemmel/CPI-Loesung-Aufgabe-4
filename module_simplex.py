@@ -47,7 +47,7 @@ def reflect(simp, a, fhandle):
         x_r[i] = x_s[i] - a * (simp[-1][i] - x_s[i])
     
     y_r = fhandle(x_r)
-    
+        
     return np.append(x_r, y_r)
     
 def expand(simp, g, fhandle):
@@ -71,7 +71,7 @@ def expand(simp, g, fhandle):
         x_e[i] = x_s[i] + g*(simp[-1][i] + x_s[i])
     
     y_e = fhandle(x_e)
-    
+        
     return np.append(x_e, y_e)
 
 def contract(simp, b, fhandle):
@@ -95,7 +95,7 @@ def contract(simp, b, fhandle):
         x_c[i] = x_s[i] + b*(simp[-1][i] - x_s[i])
     
     y_c = fhandle(x_c)
-    
+        
     return np.append(x_c, y_c)
 
 def shrink(simp, s, fhandle):
@@ -109,7 +109,7 @@ def shrink(simp, s, fhandle):
         for i in range(len(simp[i_s] - 1)):
             simp[i_s][i] = (simp[0][i] + simp[i_s][i]) / s
         simp[i_s][-1] = fhandle((simp[i_s][0], simp[i_s][1]))
-    
+        
     # Return nothing, because simplex is already shrunk
 
 def check_precision(simp, p, fhandle):
@@ -130,6 +130,12 @@ def check_precision(simp, p, fhandle):
     
     # If no distance is lager than p or no y value, then it is precise enough
     return True
+
+def calculate_volume(simp):
+    # Since it is a 2D structure, here: Volume = Area
+    # Calculate the Area by the (half) cross product
+    return 0.5 * np.linalg.norm(np.cross(simp[0]-simp[1], simp[1]-simp[2]))
+    
 
 def simplex(fhandle, x_start, N_max, p):
     """ SIMPLEX Minimumssuche mittels des Downhill-Simplex Verfahrens.
@@ -201,7 +207,8 @@ def simplex(fhandle, x_start, N_max, p):
     
     # Main loop
     N = 0
-    while N < N_max or not check_precision(simp, p, fhandle):  
+    while  N < N_max and not check_precision(simp, p, fhandle):
+    #while N < N_max and calculate_volume(simp) > p:
         # Never change the original simplex during the algorithm! always 
         # save the returned values of the simplex modifcations methods as
         # individual points
@@ -210,14 +217,13 @@ def simplex(fhandle, x_start, N_max, p):
         point_r = reflect(simp, alpha_, fhandle)
         
         # Is the new value better than the original lowest?
-        # Following it will always be: better <=> better or equal
-        if point_r[-1] <= simp[0][-1]:
+        if point_r[-1] < simp[0][-1]:
             # Yes? Then expand
             point_e = expand(np.append(simp[:-1], [point_r], axis=0), 
                     gamma_, fhandle)
             
             # point_e better?
-            if point_e[-1] <= point_r[-1]:
+            if point_e[-1] < point_r[-1]:
                 # Yes? Then take point_e as new point
                 simp = np.append(simp[:-1], [point_e], axis=0)
             else:
@@ -231,7 +237,7 @@ def simplex(fhandle, x_start, N_max, p):
         else:
             # Check at what entry the new one is better than the next best one
             for i_s in range(1, len(simp) - 1):
-                if point_r[-1] <= simp[i_s][-1]:
+                if point_r[-1] < simp[i_s][-1]:
                     simp = np.append(simp[:-1], [point_r], axis=0)
                     break
                 # Need a special case for the last value
@@ -239,7 +245,7 @@ def simplex(fhandle, x_start, N_max, p):
                     # No value up to (but including) the second to last, was
                     # worse than the new value, so check if it is at least
                     # better than the last value
-                    if point_r[-1] <= simp[-1][-1]:
+                    if point_r[-1] < simp[-1][-1]:
                         # It is better than the last
                         simp = np.append(simp[:-1], [point_r], axis=0)
                         sort_simplex(simp)
@@ -248,7 +254,7 @@ def simplex(fhandle, x_start, N_max, p):
                     point_c = contract(simp, beta_, fhandle)
                     
                     # I point_c better?
-                    if point_c[-1] <= simp[-1][-1]:
+                    if point_c[-1] < simp[-1][-1]:
                         # Yes? Set as new value
                         simp = np.append(simp[:-1], [point_c], axis=0)
                     else:
